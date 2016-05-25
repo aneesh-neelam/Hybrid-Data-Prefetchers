@@ -1292,29 +1292,395 @@ void delete_line_prefetch_queue(unsigned long long int cache_line_addr) {
     }
 }
 
+void ampm_init() {
+    int i;
+    for (i = 0; i < AMPM_PAGE_COUNT; i++) {
+        ampm_pages[i].page = 0;
+        ampm_pages[i].lru = 0;
 
+        int j;
+        for (j = 0; j < 64; j++) {
+            ampm_pages[i].access_map[j] = 0;
+            ampm_pages[i].pf_map[j] = 0;
+        }
+    }
+}
 
 // Hybrid Prefetcher code
 
 void l2_prefetcher_initialize(int cpu_num) {
-    printf("No Prefetching\n");
     // you can inspect these knob values from your code to see which configuration you're runnig in
     printf("Knobs visible from prefetcher: %d %d %d\n", knob_scramble_loads, knob_small_llc, knob_low_bandwidth);
+
+    ampm_init();
 }
 
 void l2_prefetcher_operate(int cpu_num, unsigned long long int addr, unsigned long long int ip, int cache_hit) {
     // uncomment this line to see all the information available to make prefetch decisions
     //printf("(0x%llx 0x%llx %d %d %d) ", addr, ip, cache_hit, get_l2_read_queue_occupancy(0), get_l2_mshr_occupancy(0));
+
+    // VLDP first, if not then AMPM
+
+    // VLDP
+    int is_hit = cache_hit;
+    int cpu_id = cpu_num;
+
+    long long int cur_cline_address = addr >> 6;
+    physical_address_t page_number = addr >> NUM_PAGE_BITS;
+
+    //insert to dram queue ... demand miss
+
+    if (!cache_hit) {
+
+
+        if (find_line_virtual_dram_queue(cur_cline_address) == 0) {
+            insert_virtual_dram_queue(cur_cline_address, get_current_cycle(0), 1);
+        }
+
+        if (find_line_prefetch_queue(cur_cline_address) == 1) {
+            delete_line_prefetch_queue(cur_cline_address);
+        }
+    }
+
+    static int first_time = 1;
+
+    if (first_time) {
+        first_time = 0;
+        initialize_vldp_vars();
+    }
+
+    int delta;
+    delta = update_delta_history_buffer(cpu_id, page_number, cur_cline_address, is_hit, cache_hit);
+
+    //There is a chance that a cache line access is a cache miss, but exists in one of or structures.
+    //In this case, the delta will be 0
+    //
+    if (delta == 0) {
+        return;
+    }
+
+    //If this is the first access then issue prediction from offset prediction table
+
+    int delta_buffer_entry;
+    int num_access;
+    physical_address_t first_access_offset;
+
+    delta_buffer_entry = get_delta_buffer_entry(cpu_id, page_number);
+    first_access_offset = delta_buffer[cpu_id][delta_buffer_entry].first_access_offset;
+    num_access = delta_buffer[cpu_id][delta_buffer_entry].num_times_page_touched;
+
+    assert(num_access > 0);
+
+    if (num_access == 1) {
+        physical_address_t offest_delta_prediction;
+        offest_delta_prediction = get_offset_prediction(cpu_id, first_access_offset);
+
+        if (offest_delta_prediction != 0) {
+            unsigned long long int page_addr = (((addr >> 6) + offest_delta_prediction) << 6) >> 12;
+            if ((cnt_dram_pending_requests(page_addr) <= ROW_HIT_PER_PAGE)) {
+
+                if (l2_prefetch_line(0, addr, ((addr >> 6) + offest_delta_prediction) << 6, FILL_L2) == 1) {
+                    if (find_line_virtual_dram_queue(((addr >> 6) + offest_delta_prediction)) == 0) {
+                        //l2 level ...
+                        insert_virtual_dram_queue(((addr >> 6) + offest_delta_prediction), get_current_cycle(0), 2);
+                    }
+                } else if (l2_prefetch_line(0, addr, ((addr >> 6) + offest_delta_prediction) << 6, FILL_LLC) == 1) {
+                    if (find_line_virtual_dram_queue(((addr >> 6) + offest_delta_prediction)) == 0) {
+                        //l3 level ...
+                        insert_virtual_dram_queue(((addr >> 6) + offest_delta_prediction), get_current_cycle(0), 3);
+                    }
+                }
+
+            } else {
+                //add to prefetch queue
+
+                //before inserting, check if it already exists ...
+                if (find_line_prefetch_queue(((addr >> 6) + offest_delta_prediction) << 6) == 0) {
+                    insert_prefetch_queue(addr >> 6, ((addr >> 6) + offest_delta_prediction), 1);
+                } else {
+                    //line is already in queue, update it's degree
+                    update_degree_prefetch_queue(((addr >> 6) + offest_delta_prediction), 1);
+                }
+            }
+        }
+
+        return;
+    }
+
+    //If this is the second access then update the offset prediction table
+    if (num_access == 2) {
+        update_offset_prediction_table(cpu_id, delta_buffer_entry);
+    }
+
+    //Prediction tables need to be updated for both correct and incorrect prefetches.
+    //However an update can only be done when there are 2 deltas. Here, we see if the second delta can be predicted by the first delta
+    //So only when there are three accesses to a page must we update
+    if (num_access >= 3) {
+        update_delta_prediction_tables(cpu_id, page_number, cur_cline_address);
+    }
+
+    int total_delta = 0;
+    memset(predicted_deltas, 0, sizeof(int) * (MAX_DEGREE_PREFETCHED));
+
+    degree_accesses++;
+    degree_total += MAX_DEGREE_PREFETCHED;
+
+    for (int deg = 1; deg <= MAX_DEGREE_PREFETCHED; deg++) {
+        predicted_deltas[deg - 1] = get_prefetch_delta_prediction(cpu_id, page_number, cur_cline_address, PRED, deg);
+
+        //if returned values is 0, means we didn't get anything, so we need to break this loop.
+        if (predicted_deltas[deg - 1] == 1000) {
+            break;
+        }
+
+        assert(predicted_deltas[deg - 1] >= -63 && predicted_deltas[deg - 1] <= 64);
+
+        total_delta += predicted_deltas[deg - 1];
+
+
+        if (total_delta != 0) {
+            VLDP_DEBUG_MSG ("Prefetching delta %d\n", total_delta);
+
+            //before we issue prefetch to l2, check the read queue and mshr queue status ...
+            int l2_read_queue_level = get_l2_read_queue_occupancy(cpu_num);
+            int l2_mshr_queue_level = get_l2_mshr_occupancy(cpu_num);
+            unsigned long long int prefetch_addr = ((addr >> 6) + total_delta) << 6;
+            unsigned long long int prefetch_line = ((addr >> 6) + total_delta);
+
+            //in this case, addr and prefetch_addr must be from different physical pages ...
+            unsigned long long int page_prefetch_addr = prefetch_addr >> 12;
+
+            //first check how many pending dram reqeusts are there belong to this page ...
+            if ((cnt_dram_pending_requests(page_prefetch_addr) <= ROW_HIT_PER_PAGE)) {
+
+                //we can issue prefetch ...
+                // to l2
+                if ((l2_read_queue_level < (0.75 * L2_READ_QUEUE_SIZE)) &&
+                    (l2_mshr_queue_level < (0.75 * L2_MSHR_COUNT))) {
+
+
+                    if (l2_prefetch_line(0, addr, ((addr >> 6) + total_delta) << 6, FILL_L2) == 1) {
+                        //insert to dram queue
+                        if (find_line_virtual_dram_queue(prefetch_line) == 0) {
+                            //l2 level ...
+                            insert_virtual_dram_queue(prefetch_line, get_current_cycle(0), 2);
+                        }
+
+                    }
+                }
+                    //to l3
+                else {
+
+                    if (l2_prefetch_line(0, addr, ((addr >> 6) + total_delta) << 6, FILL_LLC) == 1) {
+                        //insert to dram queue
+                        if (find_line_virtual_dram_queue(prefetch_line) == 0) {
+                            //l2 level ...
+                            insert_virtual_dram_queue(prefetch_line, get_current_cycle(0), 3);
+                        }
+                    }
+                }
+            } else {
+                //we can't issue prefetch, insert to prefetch queue ...
+                //before inserting, check if it already exists ...
+                if (find_line_prefetch_queue(prefetch_line) == 0) {
+                    insert_prefetch_queue(addr >> 6, prefetch_line, deg);
+                } else {
+                    //line is already in queue, update it's degree
+                    update_degree_prefetch_queue(prefetch_line, deg);
+                }
+            }
+        }
+    }
+
+    // AMPM used when VLDP performs poorly
+    unsigned long long int cl_address = addr >> 6;
+    unsigned long long int page = cl_address >> 6;
+    unsigned long long int page_offset = cl_address & 63;
+
+    // check to see if we have a page hit
+    int page_index = -1;
+    int i;
+    for (i = 0; i < AMPM_PAGE_COUNT; i++) {
+        if (ampm_pages[i].page == page) {
+            page_index = i;
+            break;
+        }
+    }
+
+    if (page_index == -1) {
+        // the page was not found, so we must replace an old page with this new page
+
+        // find the oldest page
+        int lru_index = 0;
+        unsigned long long int lru_cycle = ampm_pages[lru_index].lru;
+        int i;
+        for (i = 0; i < AMPM_PAGE_COUNT; i++) {
+            if (ampm_pages[i].lru < lru_cycle) {
+                lru_index = i;
+                lru_cycle = ampm_pages[lru_index].lru;
+            }
+        }
+        page_index = lru_index;
+
+        // reset the oldest page
+        ampm_pages[page_index].page = page;
+        for (i = 0; i < 64; i++) {
+            ampm_pages[page_index].access_map[i] = 0;
+            ampm_pages[page_index].pf_map[i] = 0;
+        }
+    }
+
+    // update LRU
+    ampm_pages[page_index].lru = get_current_cycle(0);
+
+    // mark the access map
+    ampm_pages[page_index].access_map[page_offset] = 1;
+
+    // positive prefetching
+    int count_prefetches = 0;
+    for (i = 1; i <= 16; i++) {
+        int check_index1 = page_offset - i;
+        int check_index2 = page_offset - 2 * i;
+        int pf_index = page_offset + i;
+
+        if (check_index2 < 0) {
+            break;
+        }
+
+        if (pf_index > 63) {
+            break;
+        }
+
+        if (count_prefetches >= PREFETCH_DEGREE) {
+            break;
+        }
+
+        if (ampm_pages[page_index].access_map[pf_index] == 1) {
+            // don't prefetch something that's already been demand accessed
+            continue;
+        }
+
+        if (ampm_pages[page_index].pf_map[pf_index] == 1) {
+            // don't prefetch something that's alrady been prefetched
+            continue;
+        }
+
+        if ((ampm_pages[page_index].access_map[check_index1] == 1) &&
+            (ampm_pages[page_index].access_map[check_index2] == 1)) {
+            // we found the stride repeated twice, so issue a prefetch
+
+            unsigned long long int pf_address = (page << 12) + (pf_index << 6);
+
+            // check the MSHR occupancy to decide if we're going to prefetch to the L2 or LLC
+            if (get_l2_mshr_occupancy(0) < 8) {
+                l2_prefetch_line(0, addr, pf_address, FILL_L2);
+            }
+            else {
+                l2_prefetch_line(0, addr, pf_address, FILL_LLC);
+            }
+
+            // mark the prefetched line so we don't prefetch it again
+            ampm_pages[page_index].pf_map[pf_index] = 1;
+            count_prefetches++;
+        }
+    }
+
+    // negative prefetching
+    count_prefetches = 0;
+    for (i = 1; i <= 16; i++) {
+        int check_index1 = page_offset + i;
+        int check_index2 = page_offset + 2 * i;
+        int pf_index = page_offset - i;
+
+        if (check_index2 > 63) {
+            break;
+        }
+
+        if (pf_index < 0) {
+            break;
+        }
+
+        if (count_prefetches >= PREFETCH_DEGREE) {
+            break;
+        }
+
+        if (ampm_pages[page_index].access_map[pf_index] == 1) {
+            // don't prefetch something that's already been demand accessed
+            continue;
+        }
+
+        if (ampm_pages[page_index].pf_map[pf_index] == 1) {
+            // don't prefetch something that's alrady been prefetched
+            continue;
+        }
+
+        if ((ampm_pages[page_index].access_map[check_index1] == 1) &&
+            (ampm_pages[page_index].access_map[check_index2] == 1)) {
+            // we found the stride repeated twice, so issue a prefetch
+
+            unsigned long long int pf_address = (page << 12) + (pf_index << 6);
+
+            // check the MSHR occupancy to decide if we're going to prefetch to the L2 or LLC
+            if (get_l2_mshr_occupancy(0) < 12) {
+                l2_prefetch_line(0, addr, pf_address, FILL_L2);
+            }
+            else {
+                l2_prefetch_line(0, addr, pf_address, FILL_LLC);
+            }
+
+            // mark the prefetched line so we don't prefetch it again
+            ampm_pages[page_index].pf_map[pf_index] = 1;
+            count_prefetches++;
+        }
+    }
+
 }
 
 void l2_cache_fill(int cpu_num, unsigned long long int addr, int set, int way, int prefetch,
                    unsigned long long int evicted_addr) {
     // uncomment this line to see the information available to you when there is a cache fill event
     //printf("0x%llx %d %d %d 0x%llx\n", addr, set, way, prefetch, evicted_addr);
+
+    //remove line from dram queue for l2 fill
+    //delete while iterating ..
+
+    unsigned long long int curr_cache_line = addr >> 6;
+    dram_queue *dram_el, *dram_temp;
+    LL_FOREACH_SAFE(head_dram, dram_el, dram_temp) {
+        if ((dram_el->cache_line_addr) == curr_cache_line) {
+            LL_DELETE(head_dram, dram_el);
+            free(dram_el);
+        }
+    }
+
+    //as we don't have l3 fill, check for lines came from l3, and delete them if they are more than 200 cycles old.
+    LL_FOREACH_SAFE(head_dram, dram_el, dram_temp) {
+        if ((dram_el->flag == 3) && ((get_current_cycle(0) - (dram_el->cycle_added)) > 500)) {
+            LL_DELETE(head_dram, dram_el);
+            free(dram_el);
+        }
+    }
+
+    //try to prefetch here ...
+    schedule_prefetch_to_dram();
+
+    // uncomment this line to see the information available to you when there is a cache fill event
+    l2_cache_fill_stat(cpu_num, addr, set, way, prefetch, evicted_addr);
 }
 
 void l2_prefetcher_heartbeat_stats(int cpu_num) {
-    printf("Prefetcher heartbeat stats\n");
+    static int cnt = 0;
+
+    cnt++;
+
+    if (cnt % 10 == 0) {
+
+        printf("\n VLDP HeartBeat: ");
+
+        print_snapshot_offset_prediction_table();
+        print_snapshot_of_VLDP_prediction_tables(0, 0);
+        printf("\n");
+    }
 }
 
 void l2_prefetcher_warmup_stats(int cpu_num) {
@@ -1322,5 +1688,5 @@ void l2_prefetcher_warmup_stats(int cpu_num) {
 }
 
 void l2_prefetcher_final_stats(int cpu_num) {
-    printf("Prefetcher final stats\n");
+    printf("avg VLDP degree = %f\n", (float) degree_total / degree_accesses);
 }
