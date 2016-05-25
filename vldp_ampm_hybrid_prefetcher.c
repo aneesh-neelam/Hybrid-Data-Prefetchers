@@ -1665,7 +1665,7 @@ void l2_cache_fill(int cpu_num, unsigned long long int addr, int set, int way, i
     schedule_prefetch_to_dram();
 
     // uncomment this line to see the information available to you when there is a cache fill event
-    l2_cache_fill_stat(cpu_num, addr, set, way, prefetch, evicted_addr);
+    // l2_cache_fill_stat(cpu_num, addr, set, way, prefetch, evicted_addr);
 }
 
 void l2_prefetcher_heartbeat_stats(int cpu_num) {
