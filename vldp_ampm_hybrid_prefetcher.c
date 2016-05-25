@@ -6,6 +6,34 @@
 #include "inc/uthash.h"
 
 
+
+// AMPM Helper functions and data structures
+
+#define AMPM_PAGE_COUNT 64
+#define PREFETCH_DEGREE 2
+
+typedef struct ampm_page {
+    // page address
+    unsigned long long int page;
+
+    // The access map itself.
+    // Each element is set when the corresponding cache line is accessed.
+    // The whole structure is analyzed to make prefetching decisions.
+    // While this is coded as an integer array, it is used conceptually as a single 64-bit vector.
+    int access_map[64];
+
+    // This map represents cache lines in this page that have already been prefetched.
+    // We will only prefetch lines that haven't already been either demand accessed or prefetched.
+    int pf_map[64];
+
+    // used for page replacement
+    unsigned long long int lru;
+} ampm_page_t;
+
+ampm_page_t ampm_pages[AMPM_PAGE_COUNT];
+
+
+
 // VLDP Helper functions and data structures
 
 #define DRAM_QUEUE 100
@@ -1263,6 +1291,8 @@ void delete_line_prefetch_queue(unsigned long long int cache_line_addr) {
         }
     }
 }
+
+
 
 // Hybrid Prefetcher code
 
