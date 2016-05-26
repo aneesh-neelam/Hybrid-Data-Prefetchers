@@ -6,28 +6,43 @@
 #include "inc/uthash.h"
 
 
+int num_prefetches = 0;
+
 
 // AMPM Helper functions and data structures
 
-#define AMPM_PAGE_COUNT 64
-#define PREFETCH_DEGREE 2
-
+#define TEPOCH 256000
+#define AMPM_PAGE_COUNT 512
+#define EVAL_PERIOD 256
+int max_ampm_page = 512;
+int l2_mshr_thresh = 8;
+int eval_counter;
+unsigned long long int total_misses = 1;
+unsigned long long int total_hits = 1;
+int AMPM_PREFETCH_DEGREE = 2;
+int PREFETCH_DEGREE;
+static unsigned long long int total_cycles = 0;
+int GP;
+int TP;
+int CM;
+int CH;
+unsigned long long int Epoch;
+int num_cand = 4; // Default set to 4, so AMPM does -4 to 4 strides
+//AMPM structure initialize
 typedef struct ampm_page {
     // page address
-    unsigned long long int page;
-
+    unsigned long long int page; //64 bit
     // The access map itself.
     // Each element is set when the corresponding cache line is accessed.
     // The whole structure is analyzed to make prefetching decisions.
     // While this is coded as an integer array, it is used conceptually as a single 64-bit vector.
     int access_map[64];
-
+    // 64 bit vector
     // This map represents cache lines in this page that have already been prefetched.
     // We will only prefetch lines that haven't already been either demand accessed or prefetched.
-    int pf_map[64];
-
+    int pf_map[64]; //64 bit vector
     // used for page replacement
-    unsigned long long int lru;
+    unsigned long long int lru; //64 bit
 } ampm_page_t;
 
 ampm_page_t ampm_pages[AMPM_PAGE_COUNT];
@@ -1293,17 +1308,26 @@ void delete_line_prefetch_queue(unsigned long long int cache_line_addr) {
 }
 
 void ampm_init() {
+    if (knob_low_bandwidth) {
+        //Reduce prefetch degree for low bandwidth requirements
+        AMPM_PREFETCH_DEGREE = 1;
+    }
     int i;
     for (i = 0; i < AMPM_PAGE_COUNT; i++) {
         ampm_pages[i].page = 0;
         ampm_pages[i].lru = 0;
-
         int j;
         for (j = 0; j < 64; j++) {
             ampm_pages[i].access_map[j] = 0;
             ampm_pages[i].pf_map[j] = 0;
         }
     }
+    GP = 0;
+    TP = 0;
+    CM = 0;
+    CH = 0;
+    Epoch = 0;
+    eval_counter = 0;
 }
 
 // Hybrid Prefetcher code
@@ -1318,6 +1342,115 @@ void l2_prefetcher_initialize(int cpu_num) {
 void l2_prefetcher_operate(int cpu_num, unsigned long long int addr, unsigned long long int ip, int cache_hit) {
     // uncomment this line to see all the information available to make prefetch decisions
     //printf("(0x%llx 0x%llx %d %d %d) ", addr, ip, cache_hit, get_l2_read_queue_occupancy(0), get_l2_mshr_occupancy(0));
+
+
+    float miss_rate = 0.0;
+    double P_cov = 0;
+    total_cycles++;
+    miss_rate = (float) total_misses / (float) (total_hits + total_misses);
+    unsigned long long int cl_address = addr >> 6;
+    unsigned long long int page = cl_address >> 6;
+    unsigned long long int page_offset = cl_address & 63;
+    eval_counter++;
+    //Begin Evaluation Period
+    if (eval_counter % EVAL_PERIOD == 0) {
+        double Pcov = (double) GP / (double) CM;
+        double Pacc = (double) GP / (double) TP;
+        double Phit = (double) CH / (double) (CM + CH);
+        // 13.5ns row hit, 40.5ns row miss. 4, 10, 20 latency l1 l2 l3. assume 100 cycle latency
+        double Mbw = (double) (CM - GP + TP) / (double) (get_current_cycle(0) - Epoch) * 88.0;
+        P_cov = Pcov;
+        if (Mbw < 1.0) Mbw = 1.0;
+        l2_mshr_thresh = 0;
+        //If BW is high and hit rate is low, increase chance of prefetching more into LLC
+        if ((Mbw > 8.0) && (Phit < .2)) l2_mshr_thresh = 6;
+        //If prefetch accuracy and coverage are low, increase number of AMPM candidate strides to 1,2,3,4,6,8
+        if ((Pacc < .9) && (Pcov < .5)) {
+            num_cand = 6; //AMPM stride now is 1,2,3,4,6,8
+            if (Phit < .2) l2_mshr_thresh = 6;
+            else
+                l2_mshr_thresh = 9 - (((int) ((Phit - 0.2) * 10)) %
+                                      9); //Vary L2_MSHR Threshold with hit rate. High hit rate would mean more prefetch into LCC. Less hit rate -> more into L2
+        }
+        else num_cand = 4; //fix AMPM candidates to a small value if accuracy and coverage are high
+        if ((TP + 1) / (GP + 1) >
+            10.0) //If ratio of Total Prefetches to Good prefetches is very high, further reduce MSHR threshold, and prefetch more into LLC
+        {
+            if (Phit < .2) l2_mshr_thresh = 2;
+            else
+                l2_mshr_thresh = 9 - (((int) ((Phit - 0.1) * 10)) %
+                                      9); //Modulate MSHR threshold based on hit rate. Increase threshold for low hit rate -> Prefetch more into L2.
+        }
+        GP = 0;
+        TP = 0;
+        CM = 0;
+        CH = 0;
+        Epoch = get_current_cycle(0);
+    }// End of evaluation period
+
+    // If miss rate is very low, keep a high page count and recycle pages less frequently
+    if (miss_rate < 0.05) max_ampm_page = 512;
+        // For high miss rate, recycle old pages with a higher probability
+    else {
+        if (P_cov <= 0.5) max_ampm_page = 384; //For low coverage keep a slightly higher page count
+        else max_ampm_page = 200;
+    }
+    if (knob_small_llc)//Small LLC -> reduce Pages even further to 512/4=128 pages
+    {
+        if (miss_rate < 0.05) max_ampm_page = 128;
+            // For high miss rate, recycle old pages with a higher probability
+        else {
+            if (P_cov <= 0.5) max_ampm_page = 64; //For low coverage keep a slightly higher page count
+            else max_ampm_page = 32;
+        }
+    }
+    int page_index = -1;
+    int i;
+    // check to see if we have a page hit
+    for (i = 0; i < max_ampm_page; i++) {
+        if (ampm_pages[i].page == page) {
+            total_hits++;
+            page_index = i;
+            break;
+        }
+    }
+
+    if (page_index == -1) {
+        total_misses++;
+        // the page was not found, so we must replace an old page with this new page
+        // find the oldest page
+        int lru_index = 0;
+        unsigned long long int lru_cycle = ampm_pages[lru_index].lru;
+
+        for (i = 0; i < max_ampm_page; i++) {
+            if (ampm_pages[i].lru < lru_cycle) {
+                lru_index = i;
+                lru_cycle = ampm_pages[lru_index].lru;
+            }
+        }
+        // reset the oldest page
+        page_index = lru_index;
+        // refresh a random page 1% of misses
+        if ((rand() % 100) < 1) page_index = rand() % max_ampm_page;
+
+        ampm_pages[page_index].page = page;
+        for (i = 0; i < 64; i++) {
+            ampm_pages[page_index].access_map[i] = 0;
+            ampm_pages[page_index].pf_map[i] = 0;
+        }
+    }
+    // Prefetch->access
+    if ((ampm_pages[page_index].pf_map[page_offset] == 1) && (ampm_pages[page_index].access_map[page_offset] == 0))
+        GP++;
+    // access->access
+    if (ampm_pages[page_index].access_map[page_offset] == 1) CH++;
+        // init/pref -> access
+    else CM++;
+
+    ampm_pages[page_index].lru = get_current_cycle(0);
+    // mark the access map
+    ampm_pages[page_index].access_map[page_offset] = 1;
+    int count_prefetches = 0;
 
     // VLDP first, if not then AMPM
 
@@ -1492,57 +1625,19 @@ void l2_prefetcher_operate(int cpu_num, unsigned long long int addr, unsigned lo
         }
     }
 
-    // AMPM used when VLDP performs poorly
-    unsigned long long int cl_address = addr >> 6;
-    unsigned long long int page = cl_address >> 6;
-    unsigned long long int page_offset = cl_address & 63;
+    // AMPM used when VLDP is not
 
-    // check to see if we have a page hit
-    int page_index = -1;
-    int i;
-    for (i = 0; i < AMPM_PAGE_COUNT; i++) {
-        if (ampm_pages[i].page == page) {
-            page_index = i;
-            break;
-        }
-    }
-
-    if (page_index == -1) {
-        // the page was not found, so we must replace an old page with this new page
-
-        // find the oldest page
-        int lru_index = 0;
-        unsigned long long int lru_cycle = ampm_pages[lru_index].lru;
-        int i;
-        for (i = 0; i < AMPM_PAGE_COUNT; i++) {
-            if (ampm_pages[i].lru < lru_cycle) {
-                lru_index = i;
-                lru_cycle = ampm_pages[lru_index].lru;
-            }
-        }
-        page_index = lru_index;
-
-        // reset the oldest page
-        ampm_pages[page_index].page = page;
-        for (i = 0; i < 64; i++) {
-            ampm_pages[page_index].access_map[i] = 0;
-            ampm_pages[page_index].pf_map[i] = 0;
-        }
-    }
-
-    // update LRU
-    ampm_pages[page_index].lru = get_current_cycle(0);
-
-    // mark the access map
-    ampm_pages[page_index].access_map[page_offset] = 1;
-
+    PREFETCH_DEGREE = AMPM_PREFETCH_DEGREE;
     // positive prefetching
-    int count_prefetches = 0;
-    for (i = 1; i <= 16; i++) {
+    int k;
+    int j[] = {1, 2, 3, 4, 6, 8};
+    for (k = 0;
+         k < num_cand; k++) //number of AMPM candidates can be either 4 or 6 based on miss rate, accuracy, and coverage
+    {
+        i = j[k];
         int check_index1 = page_offset - i;
         int check_index2 = page_offset - 2 * i;
         int pf_index = page_offset + i;
-
         if (check_index2 < 0) {
             break;
         }
@@ -1568,26 +1663,25 @@ void l2_prefetcher_operate(int cpu_num, unsigned long long int addr, unsigned lo
         if ((ampm_pages[page_index].access_map[check_index1] == 1) &&
             (ampm_pages[page_index].access_map[check_index2] == 1)) {
             // we found the stride repeated twice, so issue a prefetch
-
             unsigned long long int pf_address = (page << 12) + (pf_index << 6);
-
             // check the MSHR occupancy to decide if we're going to prefetch to the L2 or LLC
-            if (get_l2_mshr_occupancy(0) < 8) {
+            if (get_l2_mshr_occupancy(0) < l2_mshr_thresh) {
                 l2_prefetch_line(0, addr, pf_address, FILL_L2);
             }
             else {
                 l2_prefetch_line(0, addr, pf_address, FILL_LLC);
             }
-
             // mark the prefetched line so we don't prefetch it again
             ampm_pages[page_index].pf_map[pf_index] = 1;
             count_prefetches++;
+            TP++;
         }
     }
 
     // negative prefetching
     count_prefetches = 0;
-    for (i = 1; i <= 16; i++) {
+    for (k = 0; k < num_cand; k++) {
+        i = j[k];
         int check_index1 = page_offset + i;
         int check_index2 = page_offset + 2 * i;
         int pf_index = page_offset - i;
@@ -1617,20 +1711,18 @@ void l2_prefetcher_operate(int cpu_num, unsigned long long int addr, unsigned lo
         if ((ampm_pages[page_index].access_map[check_index1] == 1) &&
             (ampm_pages[page_index].access_map[check_index2] == 1)) {
             // we found the stride repeated twice, so issue a prefetch
-
             unsigned long long int pf_address = (page << 12) + (pf_index << 6);
-
             // check the MSHR occupancy to decide if we're going to prefetch to the L2 or LLC
-            if (get_l2_mshr_occupancy(0) < 12) {
+            if (get_l2_mshr_occupancy(0) < l2_mshr_thresh) {
                 l2_prefetch_line(0, addr, pf_address, FILL_L2);
             }
             else {
                 l2_prefetch_line(0, addr, pf_address, FILL_LLC);
             }
-
             // mark the prefetched line so we don't prefetch it again
             ampm_pages[page_index].pf_map[pf_index] = 1;
             count_prefetches++;
+            TP++;
         }
     }
 
