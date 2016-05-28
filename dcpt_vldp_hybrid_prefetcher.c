@@ -11,6 +11,11 @@ int num_prefetches = 0;
 
 // DCPT Helper functions and data structures
 
+#define DCPT_SIZE 200
+#define DELTA_SIZE 9
+#define DELTA_MAX 4
+#define AMPM_PAGE_COUNT 512
+
 typedef struct table {
     unsigned long long int pc; // 64 bit
     unsigned long long int last_address; // 64 bit
@@ -19,6 +24,24 @@ typedef struct table {
     unsigned long long int lru_stamp; // 64 bit
     int delta[DELTA_SIZE]; //32 bit x 9 elements
 } DCPT;
+
+typedef struct ampm_page {
+    // page address
+    unsigned long long int page; //64 bit
+    // The access map itself.
+    // Each element is set when the corresponding cache line is accessed.
+    // The whole structure is analyzed to make prefetching decisions.
+    // While this is coded as an integer array, it is used conceptually as a single 64-bit vector.
+    int access_map[64];
+    // 64 bit vector
+    // This map represents cache lines in this page that have already been prefetched.
+    // We will only prefetch lines that haven't already been either demand accessed or prefetched.
+    int pf_map[64]; //64 bit vector
+    // used for page replacement
+    unsigned long long int lru; //64 bit
+} ampm_page_t;
+
+ampm_page_t ampm_pages[AMPM_PAGE_COUNT];
 
 typedef unsigned long long int address_long;
 address_long prefetch_candidates[DELTA_SIZE];
