@@ -6,21 +6,19 @@
 #include "inc/uthash.h"
 
 
-int num_prefetches = 0;
-
-
 // DCPT Helper functions and data structures
 
 #define DCPT_SIZE 200
 #define DELTA_SIZE 9
 #define DELTA_MAX 4
 #define AMPM_PAGE_COUNT 512
+int l2_mshr_thresh = 8;
 
 typedef struct table {
     unsigned long long int pc; // 64 bit
     unsigned long long int last_address; // 64 bit
     unsigned long long int last_prefetch; // 64 bit
-    bool valid; // 1-bit
+    int valid; // 1-bit
     unsigned long long int lru_stamp; // 64 bit
     int delta[DELTA_SIZE]; //32 bit x 9 elements
 } DCPT;
@@ -49,7 +47,7 @@ address_long prefetches[DELTA_SIZE];
 DCPT dcpt_table[DCPT_SIZE];
 int num_prefetch_candidates = 0; //DCPT finds prefetch candidates
 int num_prefetches = 0; //After filtering of prefetches, we keep a count of how many succedded
-bool FOUND = 0; //Flag variable  which is true if the PC is found in DCPT table
+int FOUND = 0; //Flag variable  which is true if the PC is found in DCPT table
 
 //%%%%%%%%%%%%%Initialize all deltas in each entry to 0%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 void initialize_delta(int table_id) {
