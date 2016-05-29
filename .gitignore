@@ -35,3 +35,6 @@ bin/
 # Data Prefetcher library, whitelist
 !lib/dpc2sim.a
 !bin/runtraces.sh
+
+# IntelliJ/Jetbrains CLion
+.idea/
