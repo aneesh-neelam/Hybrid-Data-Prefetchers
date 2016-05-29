@@ -850,4 +850,3 @@ do {                                                                            
     CDL_APPEND_ELEM2(head, el, add, prev, next)
 
 #endif /* UTLIST_H */
-
