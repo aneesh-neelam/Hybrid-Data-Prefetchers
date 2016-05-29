@@ -1,0 +1,263 @@
+aneeshneelam@Aneesh-VirtualBox-Ubuntu:~/Developer/Git/DataPrefetching$ make run
+bin/runtraces.sh
+VLDP AMPM Hybrid
+
+Running trace: ./traces/GemsFDTD_trace2.dpc.gz on VLDP AMPM Hybrid
+
+*** Data Prefetching Championship 2 Simulator ***
+
+Warmup Instructions: 10000000
+Simulation Instructions: 100000000
+Scramble loads OFF
+Using 1MB Last Level Cache
+Using 12.8 GB/s DRAM bandwidth
+Knobs visible from prefetcher: 0 0 0
+
+Simulation complete. Instructions retired: 3099758 Cycles elapsed: 898454 IPC: 3.450102
+
+avg VLDP degree = 1.219697
+Running trace: ./traces/gcc_trace2.dpc.gz on VLDP AMPM Hybrid
+
+*** Data Prefetching Championship 2 Simulator ***
+
+Warmup Instructions: 10000000
+Simulation Instructions: 100000000
+Scramble loads OFF
+Using 1MB Last Level Cache
+Using 12.8 GB/s DRAM bandwidth
+Knobs visible from prefetcher: 0 0 0
+
+Simulation complete. Instructions retired: 3099753 Cycles elapsed: 9363781 IPC: 0.331036
+
+avg VLDP degree = 1.003344
+Running trace: ./traces/lbm_trace2.dpc.gz on VLDP AMPM Hybrid
+
+*** Data Prefetching Championship 2 Simulator ***
+
+Warmup Instructions: 10000000
+Simulation Instructions: 100000000
+Scramble loads OFF
+Using 1MB Last Level Cache
+Using 12.8 GB/s DRAM bandwidth
+Knobs visible from prefetcher: 0 0 0
+
+Simulation complete. Instructions retired: 3099754 Cycles elapsed: 1562199 IPC: 1.984225
+
+avg VLDP degree = 1.004619
+Running trace: ./traces/leslie3d_trace2.dpc.gz on VLDP AMPM Hybrid
+
+*** Data Prefetching Championship 2 Simulator ***
+
+Warmup Instructions: 10000000
+Simulation Instructions: 100000000
+Scramble loads OFF
+Using 1MB Last Level Cache
+Using 12.8 GB/s DRAM bandwidth
+Knobs visible from prefetcher: 0 0 0
+
+Simulation complete. Instructions retired: 3099757 Cycles elapsed: 2386077 IPC: 1.299102
+
+avg VLDP degree = 1.003666
+Running trace: ./traces/libquantum_trace2.dpc.gz on VLDP AMPM Hybrid
+
+*** Data Prefetching Championship 2 Simulator ***
+
+Warmup Instructions: 10000000
+Simulation Instructions: 100000000
+Scramble loads OFF
+Using 1MB Last Level Cache
+Using 12.8 GB/s DRAM bandwidth
+Knobs visible from prefetcher: 0 0 0
+
+Simulation complete. Instructions retired: 3099757 Cycles elapsed: 945081 IPC: 3.279885
+
+avg VLDP degree = 1.083311
+Running trace: ./traces/mcf_trace2.dpc.gz on VLDP AMPM Hybrid
+
+*** Data Prefetching Championship 2 Simulator ***
+
+Warmup Instructions: 10000000
+Simulation Instructions: 100000000
+Scramble loads OFF
+Using 1MB Last Level Cache
+Using 12.8 GB/s DRAM bandwidth
+Knobs visible from prefetcher: 0 0 0
+
+Simulation complete. Instructions retired: 3099757 Cycles elapsed: 8256611 IPC: 0.375427
+
+avg VLDP degree = 1.004681
+Running trace: ./traces/milc_trace2.dpc.gz on VLDP AMPM Hybrid
+
+*** Data Prefetching Championship 2 Simulator ***
+
+Warmup Instructions: 10000000
+Simulation Instructions: 100000000
+Scramble loads OFF
+Using 1MB Last Level Cache
+Using 12.8 GB/s DRAM bandwidth
+Knobs visible from prefetcher: 0 0 0
+
+Simulation complete. Instructions retired: 3099754 Cycles elapsed: 2575861 IPC: 1.203386
+
+avg VLDP degree = 1.018137
+Running trace: ./traces/omnetpp_trace2.dpc.gz on VLDP AMPM Hybrid
+
+*** Data Prefetching Championship 2 Simulator ***
+
+Warmup Instructions: 10000000
+Simulation Instructions: 100000000
+Scramble loads OFF
+Using 1MB Last Level Cache
+Using 12.8 GB/s DRAM bandwidth
+Knobs visible from prefetcher: 0 0 0
+
+Simulation complete. Instructions retired: 3099755 Cycles elapsed: 1376994 IPC: 2.251103
+
+avg VLDP degree = 1.011649
+DCPT VLDP Hybrid
+
+Running trace: ./traces/GemsFDTD_trace2.dpc.gz on DCPT VLDP Hybrid
+
+*** Data Prefetching Championship 2 Simulator ***
+
+Warmup Instructions: 10000000
+Simulation Instructions: 100000000
+Scramble loads OFF
+Using 1MB Last Level Cache
+Using 12.8 GB/s DRAM bandwidth
+Slim AMPM Prefetcher
+Knobs visible from prefetcher: 0 0 0
+
+Simulation complete. Instructions retired: 3099758 Cycles elapsed: 898762 IPC: 3.448920
+
+avg degree = 1.166927
+
+Complete: 
+
+Running trace: ./traces/gcc_trace2.dpc.gz on DCPT VLDP Hybrid
+
+*** Data Prefetching Championship 2 Simulator ***
+
+Warmup Instructions: 10000000
+Simulation Instructions: 100000000
+Scramble loads OFF
+Using 1MB Last Level Cache
+Using 12.8 GB/s DRAM bandwidth
+Slim AMPM Prefetcher
+Knobs visible from prefetcher: 0 0 0
+
+Simulation complete. Instructions retired: 3099757 Cycles elapsed: 9437190 IPC: 0.328462
+
+avg degree = 1.002916
+
+Complete: 
+
+Running trace: ./traces/lbm_trace2.dpc.gz on DCPT VLDP Hybrid
+
+*** Data Prefetching Championship 2 Simulator ***
+
+Warmup Instructions: 10000000
+Simulation Instructions: 100000000
+Scramble loads OFF
+Using 1MB Last Level Cache
+Using 12.8 GB/s DRAM bandwidth
+Slim AMPM Prefetcher
+Knobs visible from prefetcher: 0 0 0
+
+Simulation complete. Instructions retired: 3099758 Cycles elapsed: 1576459 IPC: 1.966279
+
+avg degree = 1.004618
+
+Complete: 
+
+Running trace: ./traces/leslie3d_trace2.dpc.gz on DCPT VLDP Hybrid
+
+*** Data Prefetching Championship 2 Simulator ***
+
+Warmup Instructions: 10000000
+Simulation Instructions: 100000000
+Scramble loads OFF
+Using 1MB Last Level Cache
+Using 12.8 GB/s DRAM bandwidth
+Slim AMPM Prefetcher
+Knobs visible from prefetcher: 0 0 0
+
+Simulation complete. Instructions retired: 3099754 Cycles elapsed: 2492653 IPC: 1.243556
+
+avg degree = 1.004170
+
+Complete: 
+
+Running trace: ./traces/libquantum_trace2.dpc.gz on DCPT VLDP Hybrid
+
+*** Data Prefetching Championship 2 Simulator ***
+
+Warmup Instructions: 10000000
+Simulation Instructions: 100000000
+Scramble loads OFF
+Using 1MB Last Level Cache
+Using 12.8 GB/s DRAM bandwidth
+Slim AMPM Prefetcher
+Knobs visible from prefetcher: 0 0 0
+
+Simulation complete. Instructions retired: 3099757 Cycles elapsed: 946861 IPC: 3.273719
+
+avg degree = 1.054327
+
+Complete: 
+
+Running trace: ./traces/mcf_trace2.dpc.gz on DCPT VLDP Hybrid
+
+*** Data Prefetching Championship 2 Simulator ***
+
+Warmup Instructions: 10000000
+Simulation Instructions: 100000000
+Scramble loads OFF
+Using 1MB Last Level Cache
+Using 12.8 GB/s DRAM bandwidth
+Slim AMPM Prefetcher
+Knobs visible from prefetcher: 0 0 0
+
+Simulation complete. Instructions retired: 3099757 Cycles elapsed: 8337689 IPC: 0.371777
+
+avg degree = 1.004191
+
+Complete: 
+
+Running trace: ./traces/milc_trace2.dpc.gz on DCPT VLDP Hybrid
+
+*** Data Prefetching Championship 2 Simulator ***
+
+Warmup Instructions: 10000000
+Simulation Instructions: 100000000
+Scramble loads OFF
+Using 1MB Last Level Cache
+Using 12.8 GB/s DRAM bandwidth
+Slim AMPM Prefetcher
+Knobs visible from prefetcher: 0 0 0
+
+Simulation complete. Instructions retired: 3099754 Cycles elapsed: 2582647 IPC: 1.200224
+
+avg degree = 1.016572
+
+Complete: 
+
+Running trace: ./traces/omnetpp_trace2.dpc.gz on DCPT VLDP Hybrid
+
+*** Data Prefetching Championship 2 Simulator ***
+
+Warmup Instructions: 10000000
+Simulation Instructions: 100000000
+Scramble loads OFF
+Using 1MB Last Level Cache
+Using 12.8 GB/s DRAM bandwidth
+Slim AMPM Prefetcher
+Knobs visible from prefetcher: 0 0 0
+
+Simulation complete. Instructions retired: 3099755 Cycles elapsed: 1380699 IPC: 2.245062
+
+avg degree = 1.012646
+
+Complete: 
+
+aneeshneelam@Aneesh-VirtualBox-Ubuntu:~/Developer/Git/DataPrefetching$
