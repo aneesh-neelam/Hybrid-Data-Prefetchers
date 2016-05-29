@@ -3,7 +3,7 @@ all:
 	gcc -Wall -o bin/dcpt_vldp dcpt_vldp_hybrid.c lib/dpc2sim.a
 
 clean: 
-	rm bin/vldp_amapm
+	rm bin/vldp_ampm
 	rm bin/dcpt_vldp
 
 run:
