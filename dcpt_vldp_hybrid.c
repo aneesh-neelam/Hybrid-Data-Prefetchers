@@ -1644,7 +1644,6 @@ void l2_prefetcher_operate(int cpu_num, unsigned long long int addr, unsigned lo
     ampm_pages[page_index].lru = get_current_cycle(0);
     // mark the access map
     ampm_pages[page_index].access_map[page_offset] = 1;
-    int count_prefetches = 0;
 
     //DCPT ---------------------------------------------------------
     //Lookup the PC in the DCPT table
