@@ -1,8 +1,10 @@
 all: 
-	gcc -Wall -o $(CLION_EXE_DIR)/vldp_ampm_dpc2sim vldp_ampm_hybrid_prefetcher.c lib/dpc2sim.a
+	gcc -Wall -o bin/vldp_ampm vldp_ampm_hybrid.c lib/dpc2sim.a
+	gcc -Wall -o bin/dcpt_vldp dcpt_vldp_hybrid.c lib/dpc2sim.a
 
 clean: 
-	rm bin/dpc2sim
+	rm bin/vldp_amapm
+	rm bin/dcpt_vldp
 
 run:
 	bin/runtraces.sh
