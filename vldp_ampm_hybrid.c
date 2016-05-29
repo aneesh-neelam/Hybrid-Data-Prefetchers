@@ -1475,6 +1475,7 @@ void l2_prefetcher_operate(int cpu_num, unsigned long long int addr, unsigned lo
         }
     }
 
+    int num_prefetches = 0;
     static int first_time = 1;
 
     if (first_time) {
@@ -1612,6 +1613,7 @@ void l2_prefetcher_operate(int cpu_num, unsigned long long int addr, unsigned lo
                         }
                     }
                 }
+                num_prefetches++;
             } else {
                 //we can't issue prefetch, insert to prefetch queue ...
                 //before inserting, check if it already exists ...
@@ -1625,7 +1627,7 @@ void l2_prefetcher_operate(int cpu_num, unsigned long long int addr, unsigned lo
         }
     }
 
-    // AMPM used when VLDP is not
+    if (num_prefetches > 0) return; // AMPM used when VLDP is not
 
     PREFETCH_DEGREE = AMPM_PREFETCH_DEGREE;
     // positive prefetching
