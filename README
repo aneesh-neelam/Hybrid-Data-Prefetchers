@@ -3,7 +3,7 @@ Hybrid Data Prefetchers
 
 Terminal Output is also documented in `results_terminal.txt`.
 
-Results are reproducible via the below commands with working directory: Makefile Root. 
+Results are reproducible via the below commands with working directory: Makefile Root.
 
 All scripts and binaries in `bin/` directory must be set executable if they are not already.
 
