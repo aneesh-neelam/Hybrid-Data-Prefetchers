@@ -27,12 +27,11 @@
 *.i*86
 *.x86_64
 *.hex
-bin/dpc2sim
+bin/
 
 # Debug files
 *.dSYM/
 
 # Data Prefetcher library, whitelist
 !lib/dpc2sim.a
-!pintool/dpc2_tracer.so
-
+!bin/runtraces.sh
