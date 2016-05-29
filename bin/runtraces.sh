@@ -6,7 +6,7 @@ for f in ./traces/*.dpc.gz; do
     zcat "$f" | ./bin/vldp_ampm -hide_heartbeat
 done
 
-echo "DCPT VLDP Hybrid\n"
+echo "\n\n\n\n\nDCPT VLDP Hybrid\n"
 for f in ./traces/*.dpc.gz; do
     echo "Running trace: $f on DCPT VLDP Hybrid"
     zcat "$f" | ./bin/dcpt_vldp -hide_heartbeat
