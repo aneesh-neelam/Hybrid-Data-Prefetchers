@@ -26,9 +26,9 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-#include "inc/prefetcher.h"
-#include "inc/utlist.h"
-#include "inc/uthash.h"
+#include "../inc/prefetcher.h"
+#include "../inc/utlist.h"
+#include "../inc/uthash.h"
 
 
 int num_prefetches = 0;

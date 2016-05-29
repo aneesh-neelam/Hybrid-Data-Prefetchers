@@ -27,9 +27,9 @@
 #include <stdlib.h>
 #include <stdbool.h>
 
-#include "inc/prefetcher.h"
-#include "inc/utlist.h"
-#include "inc/uthash.h"
+#include "../inc/prefetcher.h"
+#include "../inc/utlist.h"
+#include "../inc/uthash.h"
 
 #define TEPOCH 256000
 #define AMPM_PAGE_COUNT 512
