@@ -1,0 +1,105 @@
+Hybrid Data Prefetchers
+=======================
+
+Terminal Output is also documented in `results_terminal.txt`.
+
+Results are reproducible via the below commands (Working directory: `src/`).
+
+All scripts and binaries in `bin/` directory must be set executable if they are not already.
+
+
+
+Commands
+--------
+
+To build both prefetchers:
+    make
+
+To run all traces with all four configuration options on both prefetchers:
+    make run
+
+
+
+Results:
+--------
+
+VLDP-AMPM hybrid, default setting
+GemsFDTD    3.450102
+gcc         0.331036
+lbm         1.984225
+leslie3d    1.299102
+libquantum  3.279885
+mcf         0.375427
+milc        1.203386
+omnetpp     2.251103
+
+VLDP-AMPM hybrid, small_llc settings
+GemsFDTD    3.450102
+gcc         0.334651
+lbm         1.768515
+leslie3d    1.196737
+libquantum  3.279885
+mcf         0.236937
+milc        1.117191
+omnetpp     1.535260
+
+VLDP-AMPM hybrid, low_bandwidth setting
+GemsFDTD    3.411516
+gcc         0.182784
+lbm         0.987513
+leslie3d    0.689992
+libquantum  3.180119
+mcf         0.224346
+milc        0.615020
+omnetpp     1.749399
+
+VLDP-AMPM hybrid, scramble_loads setting
+GemsFDTD    3.426760
+gcc         0.331000
+lbm         1.979308
+leslie3d    1.260684
+libquantum  3.278289
+mcf         0.378711
+milc        1.191201
+omnetpp     2.254144
+
+
+DCPT-VLDP hybrid, default setting
+GemsFDTD    3.448920
+gcc         0.328462
+lbm         1.966279
+leslie3d    1.243556
+libquantum  3.273719
+mcf         0.371777
+milc        1.200224
+omnetpp     2.245062
+
+DCPT-VLDP hybrid, small_llc settings
+GemsFDTD    3.448920
+gcc         0.330768
+lbm         1.768936
+leslie3d    1.149879
+libquantum  3.273719
+mcf         0.237254
+milc        1.114823
+omnetpp     1.528507
+
+DCPT-VLDP hybrid, low_bandwidth setting
+GemsFDTD    3.411539
+gcc         0.183068
+lbm         0.986207
+leslie3d    0.678101
+libquantum  3.204195
+mcf         0.223630
+milc        0.613283
+omnetpp     1.738227
+
+DCPT-VLDP hybrid, scramble_loads setting
+GemsFDTD    3.423804
+gcc         0.328068
+lbm         1.982051
+leslie3d    1.207869
+libquantum  3.274490
+mcf         0.373476
+milc        1.187882
+omnetpp     2.245905
