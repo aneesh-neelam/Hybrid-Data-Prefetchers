@@ -1,7 +1,12 @@
 Hybrid Data Prefetchers
 =======================
 
-Terminal Output is also documented in `results_terminal.txt`.
+﻿Data Prefetching Championship Simulation Library in `lib/`.
+Traces in `traces/`.
+Sources in `src/`.
+Documentation in `doc/`. Terminal Output is also documented in `doc/results_terminal.txt`.
+Binaries and Executable Scripts in `bin/`.
+
 
 Results are reproducible via the below commands with working directory: Makefile Root.
 
