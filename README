@@ -108,3 +108,14 @@ libquantum  3.274490
 mcf         0.373476
 milc        1.187882
 omnetpp     2.245905
+
+
+
+﻿References
+----------
+
+1. Yasuo Ishii, Mary Inaba, and Kei Hiraki, “Access Map Pattern Matching Prefetch: Optimization Friendly Method”
+
+2. Vinson Young, Ajit Krisshna, “Towards Bandwidth-Efficient Prefetching with Slim AMPM”
+
+3. Manjunath Shevgoor, Sahil Koladiya, Rajeev Balasubramonian, Zeshan Chishti, “Efficiently Prefetching Complex Address Patterns”
